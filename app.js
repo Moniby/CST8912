@@ -153,21 +153,33 @@ function processPayment(cardNumber) {
   return { reference: `pay_${Date.now()}`, status: "PAID" };
 }
 
-// Routes
+// Routes with safe defaults
 app.get('/', async (req, res) => {
   const products = await getProducts();
-  res.render('index', { products, cartCount: (req.session.cart || []).length });
+  res.render('index', { 
+    title: "CST8912 Ecommerce Store Project", 
+    products, 
+    cartCount: (req.session.cart || []).length 
+  });
 });
 
 app.get('/products', async (req, res) => {
   const products = await getProducts();
-  res.render('products', { products, cartCount: (req.session.cart || []).length });
+  res.render('products', { 
+    title: "Products", 
+    products, 
+    cartCount: (req.session.cart || []).length 
+  });
 });
 
 app.get('/product/:id', async (req, res) => {
   const product = await getProductById(req.params.id);
   if (!product) return res.send("Product not found");
-  res.render('product', { product, cartCount: (req.session.cart || []).length });
+  res.render('product', { 
+    title: product.Name, 
+    product, 
+    cartCount: (req.session.cart || []).length 
+  });
 });
 
 app.post('/cart/add', async (req, res) => {
@@ -183,7 +195,12 @@ app.post('/cart/add', async (req, res) => {
 app.get('/cart', (req, res) => {
   const cart = req.session.cart || [];
   const total = cart.reduce((sum, item) => sum + Number(item.product.Price) * item.quantity, 0);
-  res.render('cart', { cart, total, cartCount: cart.length });
+  res.render('cart', { 
+    title: "Your Cart", 
+    cart, 
+    total, 
+    cartCount: cart.length 
+  });
 });
 
 app.post('/cart/update', (req, res) => {
@@ -204,7 +221,13 @@ app.get('/checkout', (req, res) => {
   const cart = req.session.cart || [];
   if (cart.length === 0) return res.redirect('/products');
   const total = cart.reduce((sum, item) => sum + Number(item.product.Price) * item.quantity, 0);
-  res.render('checkout', { cart, total, cartCount: cart.length, error: null });
+  res.render('checkout', { 
+    title: "Checkout", 
+    cart, 
+    total, 
+    cartCount: cart.length, 
+    error: null 
+  });
 });
 
 app.post('/checkout', async (req, res) => {
@@ -218,14 +241,24 @@ app.post('/checkout', async (req, res) => {
     res.redirect(`/order/${orderId}`);
   } catch (err) {
     const total = cart.reduce((sum, item) => sum + Number(item.product.Price) * item.quantity, 0);
-    res.render('checkout', { cart, total, cartCount: cart.length, error: err.message });
+    res.render('checkout', { 
+      title: "Checkout", 
+      cart, 
+      total, 
+      cartCount: cart.length, 
+      error: err.message 
+    });
   }
 });
 
 app.get('/order/:id', (req, res) => {
-  res.render('order-success', { orderId: req.params.id, cartCount: 0 });
+  res.render('order-success', { 
+    title: `Order #${req.params.id}`, 
+    orderId: req.params.id, 
+    cartCount: 0 
+  });
 });
 
 initDB().then(() => {
-  app.listen(port, () => console.log(`🚀 CST8912 running on Azure with Blob Storage images`));
+  app.listen(port, () => console.log(`🚀 CST8912 running on Azure`));
 });
