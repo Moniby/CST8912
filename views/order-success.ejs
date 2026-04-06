@@ -15,20 +15,38 @@
           <a href="/products">Products</a>
           <a href="/cart">Cart (0)</a>
         </nav>
+
         <div class="hero-top">
-          <h1>Success!</h1>
-          <p>Thank you for your purchase.</p>
+          <div>
+            <h1>Confirmation</h1>
+            <p>Thank you for shopping with us!</p>
+          </div>
         </div>
       </div>
     </header>
 
     <main class="container">
       <div class="welcome-card" style="text-align: center;">
-        <h2 style="color: var(--green-700);">Order #<%= orderId %> Confirmed</h2>
-        <p>A demo payment was processed successfully with reference ID: <strong>DEMO-MODE</strong>.</p>
+        <div style="background-color: #d4edda; color: #155724; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-weight: bold;">
+          <%= message %>
+        </div>
+
+        <h2 style="color: #2e7d32;">Order #<%= orderId %> Confirmed</h2>
+        <p>A demo payment was processed successfully.</p>
         <p>Total Charged: <strong>$<%= total.toFixed(2) %></strong></p>
+        
+        <div style="background-color: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1.5rem 0; border: 1px solid #e9ecef;">
+            <p style="font-size: 0.9rem; color: #6c757d; margin: 0;">
+                Your order details have been successfully saved to the <strong>Azure SQL Database</strong>.
+            </p>
+        </div>
+
         <hr style="border: 0; border-top: 1px solid #c8e8d3; margin: 2rem 0;" />
-        <a href="/products" class="primary-link">Continue Shopping</a>
+        
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+            <a href="/products" class="primary-link">Continue Shopping</a>
+            <a href="/" class="secondary-btn" style="text-decoration: none;">Return Home</a>
+        </div>
       </div>
     </main>
   </body>
