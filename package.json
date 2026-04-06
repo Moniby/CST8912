@@ -1,14 +1,13 @@
 {
-  "name": "cst8912",
+  "name": "cst8912-ecommerce",
   "version": "1.0.0",
-  "license": "ISC",
-  "scripts": {
-    "start": "node src/server.js"
-  },
+  "main": "app.js",
   "dependencies": {
-    "dotenv": "^17.4.1",
-    "ejs": "^5.0.1",
-    "express": "^5.2.1",
-    "mssql": "^12.2.1"
+    "express": "^4.18.2",
+    "ejs": "^3.1.9",
+    "mssql": "^10.0.1",
+    "express-session": "^1.17.3",
+    "@azure/storage-blob": "^12.16.0",
+    "multer": "^1.4.5"
   }
 }
