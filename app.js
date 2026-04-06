@@ -149,6 +149,14 @@ app.get('/product/:id', async (req, res) => {
   });
 });
 
+app.get('/about', (req, res) => {
+    res.render('about', { 
+        title: 'About Us',
+        cartCount: req.session.cart ? req.session.cart.length : 0 
+    });
+});
+
+
 app.post('/cart/add', async (req, res) => {
   const product = await getProductById(req.body.productId);
   if (!product) return res.redirect('/products');
