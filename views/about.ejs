@@ -1,23 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About Us</title>
-    <link rel="stylesheet" href="/styles/main.css">
-</head>
-<body>
-    <header>
-        <div class="container">
-            <div class="hero">
-                <h1>CST8912 Ecommerce Store Project</h1>
-                <a href="/cart" class="cart-link">Cart (<%= cartCount || 0 %>)</a>
-            </div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/styles/main.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="container">
+        <nav class="top-nav centered-nav">
+          <a href="/">Home</a>
+          <a href="/about">About Us</a>
+          <a href="/products">Products</a>
+          <a href="/cart">Cart (<%= cartCount %>)</a>
+        </nav>
+
+        <div class="hero-top">
+          <div>
+            <h1>About Us</h1>
+            <p>Learn more about CST8912 Ecommerce Store Project.</p>
+          </div>
         </div>
+      </div>
     </header>
-    <div class="container">
-        <h2>About Us</h2>
-        <p>The project is for CST 8912 - Cloud Solution Project Architecture, developed by Oluwatobi Monilari.</p>
-    </div>
-</body>
+
+    <main class="container">
+      <section class="welcome-card">
+        <h2>Our Story</h2>
+        <p>
+          CST8912 Ecommerce Store Project is a cloud-based ecommerce application built for
+          CST 8912 - Cloud Solution Project Architecture.
+        </p>
+        <p>
+          The platform is developed by Oluwatobi Monilari and uses Azure App Service and
+          Azure SQL Database to deliver a scalable shopping experience.
+        </p>
+      </section>
+    </main>
+  </body>
 </html>
