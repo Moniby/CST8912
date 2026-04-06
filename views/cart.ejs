@@ -1,0 +1,18 @@
+<h2>Cart</h2>
+
+<% cart.forEach((item,index)=>{ %>
+<p><%= item.product.Name %> (Qty: <%= item.quantity %>)</p>
+
+<form method="POST" action="/cart/update">
+<input type="hidden" name="index" value="<%= index %>">
+<input name="quantity" value="<%= item.quantity %>">
+<button>Update</button>
+</form>
+
+<form method="POST" action="/cart/remove">
+<input type="hidden" name="index" value="<%= index %>">
+<button>Remove</button>
+</form>
+<% }) %>
+
+<a href="/checkout">Checkout</a>
