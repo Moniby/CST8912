@@ -38,11 +38,11 @@ function withBlobUrl(url) {
   return blobBaseUrl ? `${blobBaseUrl}/${clean}` : url;
 }
 
+// Reset products with correct SVG paths
 async function initDB() {
   try {
     const pool = await sql.connect(config);
 
-    // Create Products table
     await pool.request().query(`
       IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Products' AND xtype='U')
       CREATE TABLE Products (
@@ -55,7 +55,7 @@ async function initDB() {
       );
     `);
 
-    // Force correct demo products with SVG paths every startup
+    // Force correct images every startup
     await pool.request().query(`
       DELETE FROM Products;
       INSERT INTO Products (Name, Category, Price, Description, ImageUrl)
@@ -65,14 +65,11 @@ async function initDB() {
       ('Sport Sneakers', 'Sneakers', 89.99, 'Lightweight sneakers designed for comfort.', '/images/sneakers.svg');
     `);
 
-    console.log('✅ Products reset with correct SVG images');
+    console.log('✅ Products reset with SVG images from Blob Storage');
   } catch (err) {
     console.log('⚠️ DB warning:', err.message);
   }
 }
-
-// Rest of the app.js remains the same as before (getProducts, routes, etc.)
-// ... (I'll keep it short here - use the previous full version and only replace the initDB part)
 
 async function getProducts() {
   try {
@@ -91,8 +88,89 @@ async function getProducts() {
   }
 }
 
-// ... (keep all the routes exactly as in the previous full app.js I gave you)
+async function getProductById(id) {
+  const products = await getProducts();
+  return products.find(p => Number(p.Id) === Number(id));
+}
 
-initDB().then(() => {
-  app.listen(port, () => console.log(`🚀 CST8912 running with SVG images`));
+async function createOrder(customer, cart, payment) {
+  const total = cart.reduce((sum, item) => sum + Number(item.product.Price) * item.quantity, 0);
+  const pool = await sql.connect(config);
+
+  const orderResult = await pool.request()
+    .input('name', sql.NVarChar, customer.name)
+    .input('email', sql.NVarChar, customer.email)
+    .input('address', sql.NVarChar, customer.address)
+    .input('total', sql.Decimal(10,2), total)
+    .input('ref', sql.NVarChar, payment.reference)
+    .input('status', sql.NVarChar, payment.status)
+    .query(`
+      INSERT INTO Orders (CustomerName, CustomerEmail, ShippingAddress, TotalAmount, PaymentReference, PaymentStatus)
+      OUTPUT INSERTED.Id VALUES (@name, @email, @address, @total, @ref, @status)
+    `);
+
+  const orderId = orderResult.recordset[0].Id;
+
+  for (const item of cart) {
+    await pool.request()
+      .input('orderId', sql.Int, orderId)
+      .input('name', sql.NVarChar, item.product.Name)
+      .input('price', sql.Decimal(10,2), item.product.Price)
+      .input('qty', sql.Int, item.quantity)
+      .query(`INSERT INTO OrderItems (OrderId, ProductName, UnitPrice, Quantity) VALUES (@orderId, @name, @price, @qty)`);
+  }
+  return orderId;
+}
+
+function processPayment(cardNumber) {
+  const clean = String(cardNumber || '').replace(/\D/g, '');
+  if (clean.length < 12) throw new Error("Invalid card number");
+  return { reference: `pay_${Date.now()}`, status: "PAID" };
+}
+
+// ===================== ROUTES =====================
+
+app.get('/', async (req, res) => {
+  const products = await getProducts();
+  res.render('index', { 
+    title: "CST8912 Ecommerce Store Project", 
+    products, 
+    cartCount: (req.session.cart || []).length 
+  });
 });
+
+app.get('/products', async (req, res) => {
+  const products = await getProducts();
+  res.render('index', { 
+    title: "Products", 
+    products, 
+    cartCount: (req.session.cart || []).length 
+  });
+});
+
+app.get('/product/:id', async (req, res) => {
+  const product = await getProductById(req.params.id);
+  if (!product) return res.send("Product not found");
+  res.render('product', { 
+    title: product.Name, 
+    product, 
+    cartCount: (req.session.cart || []).length 
+  });
+});
+
+app.post('/cart/add', async (req, res) => {
+  const product = await getProductById(req.body.productId);
+  if (!product) return res.redirect('/products');
+  if (!req.session.cart) req.session.cart = [];
+  const existing = req.session.cart.find(i => Number(i.product.Id) === Number(product.Id));
+  if (existing) existing.quantity++;
+  else req.session.cart.push({ product, quantity: 1 });
+  res.redirect('/cart');
+});
+
+app.get('/cart', (req, res) => {
+  const cart = req.session.cart || [];
+  const total = cart.reduce((sum, item) => sum + Number(item.product.Price) * item.quantity, 0);
+  res.render('cart', { 
+    title: "Your Cart", 
+   
