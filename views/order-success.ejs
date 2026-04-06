@@ -1,38 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title><%= title %></title>
-    <link rel="stylesheet" href="/styles/main.css" />
-  </head>
-  <body>
-    <header class="hero">
-      <div class="container hero-top">
-        <h1>Order Confirmed</h1>
-        <a class="secondary-btn" href="/products">Back to Products</a>
-      </div>
-    </header>
-    <main class="container">
-      <section class="confirmation-card">
-        <h2>Thank you, <%= order.CustomerName %>!</h2>
-        <p>Your order number is <strong>#<%= order.Id %></strong>.</p>
-        <p>Confirmation sent to <%= order.CustomerEmail %>.</p>
-        <p>Shipping address: <%= order.ShippingAddress %></p>
-        <p>Payment reference: <strong><%= order.PaymentReference || "N/A" %></strong></p>
-        <p>Payment status: <strong><%= order.PaymentStatus || "PENDING" %></strong></p>
-        <p class="total-line">Total Paid: $<%= Number(order.TotalAmount).toFixed(2) %></p>
-      </section>
-
-      <h3>Items</h3>
-      <ul class="order-items">
-        <% order.Items.forEach((item) => { %>
-        <li>
-          <span><%= item.ProductName %> x <%= item.Quantity %></span>
-          <strong>$<%= (Number(item.UnitPrice) * item.Quantity).toFixed(2) %></strong>
-        </li>
-        <% }); %>
-      </ul>
-    </main>
-  </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title || "Order Confirmed" %></title>
+    <link rel="stylesheet" href="/styles/main.css">
+</head>
+<body>
+    <div class="container">
+        <div class="confirmation-card">
+            <h2>Thank you for your order!</h2>
+            <p>Your order number is <strong>#<%= orderId || 'N/A' %></strong></p>
+            <p>Payment status: <strong>PAID</strong></p>
+            <a href="/products" class="primary-link">Continue Shopping</a>
+        </div>
+    </div>
+</body>
 </html>
