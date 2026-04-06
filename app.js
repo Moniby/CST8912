@@ -122,7 +122,8 @@ function safeRender(res, view, data = {}) {
     total: 0,
     error: null,
     orderId: "",
-    product: null
+    product: null,
+    message: ""
   };
   res.render(view, { ...defaults, ...data });
 }
@@ -174,6 +175,7 @@ app.get('/product/:id', async (req, res) => {
   });
 });
 
+// Fixed About Route
 app.get('/about', (req, res) => {
     res.render('about', { 
         title: 'About Us',
@@ -218,7 +220,7 @@ app.get('/checkout', (req, res) => {
   safeRender(res, 'checkout', { title: "Checkout", cart, total, cartCount: cart.length });
 });
 
-// Demo Payment and Database Storage Logic
+// Demo Payment and Success Message Logic
 app.post('/checkout', async (req, res) => {
   const cart = req.session.cart || [];
   if (cart.length === 0) return res.redirect('/products');
@@ -257,8 +259,16 @@ app.post('/checkout', async (req, res) => {
       }
 
       await transaction.commit();
+
+      // 3. Clear Cart and Show Success View
       req.session.cart = [];
-      res.redirect(`/order/${orderId}`);
+      res.render('order-success', { 
+        title: 'Order Confirmed', 
+        orderId, 
+        total, 
+        message: "Order successfully placed!", 
+        cartCount: 0 
+      });
 
     } catch (dbErr) {
       await transaction.rollback();
@@ -273,10 +283,10 @@ app.post('/checkout', async (req, res) => {
 });
 
 app.get('/order/:id', (req, res) => {
-  const total = 0; // In a real app, fetch from DB
   safeRender(res, 'order-success', { 
     title: `Order Confirmed`, 
     orderId: req.params.id,
+    message: "Order found!",
     total: 0,
     cartCount: 0 
   });
