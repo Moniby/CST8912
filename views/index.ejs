@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title || "CST8912 Ecommerce Store" %></title>
+    <title><%= title || "CST8912 Ecommerce Store Project" %></title>
     <link rel="stylesheet" href="/styles/main.css">
 </head>
 <body>
@@ -25,12 +25,13 @@
 
     <div class="container">
         <h2>Featured Products</h2>
+        
         <div class="product-grid">
-            <% products.forEach(product => { %>
+            <% (products || []).forEach(product => { %>
                 <div class="product-card">
-                    <img src="<%= product.ImageUrl %>" alt="<%= product.Name %>">
+                    <img src="<%= product.ImageUrl || '' %>" alt="<%= product.Name %>">
                     <h3><%= product.Name %></h3>
-                    <p class="price">$<%= product.Price.toFixed(2) %></p>
+                    <p class="price">$<%= Number(product.Price || 0).toFixed(2) %></p>
                     <div class="card-actions">
                         <a href="/product/<%= product.Id %>" class="secondary-btn">View Details</a>
                         <form action="/cart/add" method="POST">
