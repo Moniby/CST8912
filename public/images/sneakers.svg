@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
-  <rect width="400" height="300" fill="#d8f3df"/>
-  <path d="M85 190 C120 150, 170 150, 220 178 L300 178 C325 178, 345 195, 345 215 L345 225 L85 225 Z" fill="#2fb65d"/>
-  <circle cx="155" cy="226" r="16" fill="#0d3b1e"/>
-  <circle cx="275" cy="226" r="16" fill="#0d3b1e"/>
-  <text x="200" y="280" text-anchor="middle" font-size="28" fill="#0d3b1e" font-family="Arial">Sneakers</text>
-</svg>

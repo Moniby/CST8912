@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
-  <rect width="400" height="300" fill="#d8f3df"/>
-  <path d="M145 60 H255 L240 230 H200 L190 130 L180 230 H140 Z" fill="#2fb65d"/>
-  <text x="200" y="280" text-anchor="middle" font-size="28" fill="#0d3b1e" font-family="Arial">Pants</text>
-</svg>
