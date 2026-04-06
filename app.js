@@ -1,179 +1,231 @@
+require('dotenv').config();
 const express = require('express');
 const sql = require('mssql');
 const session = require('express-session');
-const multer = require('multer');
-const { BlobServiceClient } = require('@azure/storage-blob');
+const path = require('path');
 
 const app = express();
+const port = process.env.PORT || 3000;
 
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'));
 app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.urlencoded({ extended: true }));
 
 app.use(session({
-    secret: 'secret',
-    resave: false,
-    saveUninitialized: true
+  secret: process.env.SESSION_SECRET || 'cst8912-simple-secret-2026',
+  resave: false,
+  saveUninitialized: true
 }));
 
-const upload = multer({ storage: multer.memoryStorage() });
-
-// Azure SQL CONFIG (UPDATE)
 const config = {
-    user: 'CommerceProj',
-    password: 'Com@2026',
-    server: 'ecommerce-sql-unique.database.windows.net',
-    database: 'ecommerce-db',
-    options: { encrypt: true }
+  server: process.env.AZURE_SQL_SERVER,
+  database: process.env.AZURE_SQL_DATABASE,
+  user: process.env.AZURE_SQL_USER,
+  password: process.env.AZURE_SQL_PASSWORD,
+  options: { 
+    encrypt: true, 
+    trustServerCertificate: false 
+  }
 };
 
-// Azure Blob CONFIG (UPDATE)
-const blobServiceClient = BlobServiceClient.fromConnectionString("DefaultEndpointsProtocol=https;AccountName=ecommercestorage132;AccountKey=kWVt3g5lggLUoyc+lz0++Un85I0Sbwb8XyHKyezzcIxOWLFL8DT+NYxe06n1IYs38SZb+ZW2xlfr+AStJ+/M7g==;EndpointSuffix=core.windows.net");
-const containerName = "product-images";
+const blobBaseUrl = (process.env.AZURE_BLOB_BASE_URL || '').replace(/\/+$/, '');
 
-// Init cart
-app.use((req, res, next) => {
-    if (!req.session.cart) req.session.cart = [];
-    next();
-});
+function withBlobUrl(url) {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  const clean = url.startsWith('/') ? url.slice(1) : url;
+  return blobBaseUrl ? `${blobBaseUrl}/${clean}` : url;
+}
 
-// HOME
+async function initDB() {
+  try {
+    const pool = await sql.connect(config);
+
+    await pool.request().query(`
+      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Products' AND xtype='U')
+      CREATE TABLE Products (
+        Id INT IDENTITY(1,1) PRIMARY KEY,
+        Name NVARCHAR(100) NOT NULL,
+        Category NVARCHAR(50),
+        Price DECIMAL(10,2) NOT NULL,
+        Description NVARCHAR(255),
+        ImageUrl NVARCHAR(255)
+      );
+    `);
+
+    const count = await pool.request().query("SELECT COUNT(*) as cnt FROM Products");
+    if (count.recordset[0].cnt === 0) {
+      await pool.request().query(`
+        INSERT INTO Products (Name, Category, Price, Description, ImageUrl)
+        VALUES 
+        ('Classic Shirt', 'Shirt', 39.99, 'Comfortable cotton shirt for everyday wear.', '/images/shirt.svg'),
+        ('Modern Pants', 'Pants', 59.99, 'Slim-fit pants with stretch fabric.', '/images/pants.svg'),
+        ('Sport Sneakers', 'Sneakers', 89.99, 'Lightweight sneakers designed for comfort.', '/images/sneakers.svg');
+      `);
+    }
+
+    await pool.request().query(`
+      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Orders' AND xtype='U')
+      CREATE TABLE Orders (
+        Id INT IDENTITY(1,1) PRIMARY KEY,
+        CustomerName NVARCHAR(120),
+        CustomerEmail NVARCHAR(120),
+        ShippingAddress NVARCHAR(255),
+        TotalAmount DECIMAL(10,2),
+        PaymentReference NVARCHAR(120),
+        PaymentStatus NVARCHAR(30),
+        CreatedAt DATETIME2 DEFAULT SYSUTCDATETIME()
+      );
+    `);
+
+    await pool.request().query(`
+      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='OrderItems' AND xtype='U')
+      CREATE TABLE OrderItems (
+        Id INT IDENTITY(1,1) PRIMARY KEY,
+        OrderId INT FOREIGN KEY REFERENCES Orders(Id),
+        ProductName NVARCHAR(100),
+        UnitPrice DECIMAL(10,2),
+        Quantity INT
+      );
+    `);
+
+    console.log('✅ Azure SQL ready');
+  } catch (err) {
+    console.log('⚠️ DB init warning:', err.message);
+  }
+}
+
+async function getProducts() {
+  try {
+    const pool = await sql.connect(config);
+    const result = await pool.request().query("SELECT * FROM Products ORDER BY Id");
+    return result.recordset.map(p => ({
+      ...p,
+      ImageUrl: withBlobUrl(p.ImageUrl)
+    }));
+  } catch (e) {
+    return [
+      { Id: 1, Name: "Classic Shirt", Category: "Shirt", Price: 39.99, ImageUrl: withBlobUrl("/images/shirt.svg") },
+      { Id: 2, Name: "Modern Pants", Category: "Pants", Price: 59.99, ImageUrl: withBlobUrl("/images/pants.svg") },
+      { Id: 3, Name: "Sport Sneakers", Category: "Sneakers", Price: 89.99, ImageUrl: withBlobUrl("/images/sneakers.svg") }
+    ];
+  }
+}
+
+async function getProductById(id) {
+  const products = await getProducts();
+  return products.find(p => Number(p.Id) === Number(id));
+}
+
+async function createOrder(customer, cart, payment) {
+  const total = cart.reduce((sum, item) => sum + Number(item.product.Price) * item.quantity, 0);
+  const pool = await sql.connect(config);
+
+  const orderResult = await pool.request()
+    .input('name', sql.NVarChar, customer.name)
+    .input('email', sql.NVarChar, customer.email)
+    .input('address', sql.NVarChar, customer.address)
+    .input('total', sql.Decimal(10,2), total)
+    .input('ref', sql.NVarChar, payment.reference)
+    .input('status', sql.NVarChar, payment.status)
+    .query(`
+      INSERT INTO Orders (CustomerName, CustomerEmail, ShippingAddress, TotalAmount, PaymentReference, PaymentStatus)
+      OUTPUT INSERTED.Id VALUES (@name, @email, @address, @total, @ref, @status)
+    `);
+
+  const orderId = orderResult.recordset[0].Id;
+
+  for (const item of cart) {
+    await pool.request()
+      .input('orderId', sql.Int, orderId)
+      .input('name', sql.NVarChar, item.product.Name)
+      .input('price', sql.Decimal(10,2), item.product.Price)
+      .input('qty', sql.Int, item.quantity)
+      .query(`INSERT INTO OrderItems (OrderId, ProductName, UnitPrice, Quantity) VALUES (@orderId, @name, @price, @qty)`);
+  }
+  return orderId;
+}
+
+function processPayment(cardNumber) {
+  const clean = String(cardNumber || '').replace(/\D/g, '');
+  if (clean.length < 12) throw new Error("Invalid card number");
+  return { reference: `pay_${Date.now()}`, status: "PAID" };
+}
+
+// Routes
 app.get('/', async (req, res) => {
-    let pool = await sql.connect(config);
-    let result = await pool.request().query("SELECT TOP 6 * FROM Products");
-    res.render('index', { products: result.recordset });
+  const products = await getProducts();
+  res.render('index', { products, cartCount: (req.session.cart || []).length });
 });
 
-// PRODUCTS + SEARCH
 app.get('/products', async (req, res) => {
-    const search = req.query.search || '';
-    let pool = await sql.connect(config);
-
-    let result = await pool.request()
-        .input('search', sql.NVarChar, `%${search}%`)
-        .query("SELECT * FROM Products WHERE Name LIKE @search");
-
-    res.render('products', { products: result.recordset, search });
+  const products = await getProducts();
+  res.render('products', { products, cartCount: (req.session.cart || []).length });
 });
 
-// PRODUCT PAGE
 app.get('/product/:id', async (req, res) => {
-    let pool = await sql.connect(config);
-    let result = await pool.request()
-        .input('id', sql.Int, req.params.id)
-        .query("SELECT * FROM Products WHERE Id=@id");
-
-    res.render('product', { product: result.recordset[0] });
+  const product = await getProductById(req.params.id);
+  if (!product) return res.send("Product not found");
+  res.render('product', { product, cartCount: (req.session.cart || []).length });
 });
 
-// CART
 app.post('/cart/add', async (req, res) => {
-    let pool = await sql.connect(config);
-    let result = await pool.request()
-        .input('id', sql.Int, req.body.productId)
-        .query("SELECT * FROM Products WHERE Id=@id");
-
-    req.session.cart.push({ product: result.recordset[0], quantity: 1 });
-    res.redirect('/cart');
+  const product = await getProductById(req.body.productId);
+  if (!product) return res.redirect('/products');
+  if (!req.session.cart) req.session.cart = [];
+  const existing = req.session.cart.find(i => Number(i.product.Id) === Number(product.Id));
+  if (existing) existing.quantity++;
+  else req.session.cart.push({ product, quantity: 1 });
+  res.redirect('/cart');
 });
 
 app.get('/cart', (req, res) => {
-    res.render('cart', { cart: req.session.cart });
+  const cart = req.session.cart || [];
+  const total = cart.reduce((sum, item) => sum + Number(item.product.Price) * item.quantity, 0);
+  res.render('cart', { cart, total, cartCount: cart.length });
 });
 
 app.post('/cart/update', (req, res) => {
-    req.session.cart[req.body.index].quantity = parseInt(req.body.quantity);
-    res.redirect('/cart');
+  const cart = req.session.cart || [];
+  const idx = parseInt(req.body.index);
+  if (cart[idx]) cart[idx].quantity = parseInt(req.body.quantity) || 1;
+  res.redirect('/cart');
 });
 
 app.post('/cart/remove', (req, res) => {
-    req.session.cart.splice(req.body.index, 1);
-    res.redirect('/cart');
+  const cart = req.session.cart || [];
+  const idx = parseInt(req.body.index);
+  if (cart[idx]) cart.splice(idx, 1);
+  res.redirect('/cart');
 });
 
-// AUTH
-app.get('/login', (req, res) => res.render('login'));
-app.get('/register', (req, res) => res.render('register'));
-
-app.post('/register', async (req, res) => {
-    let pool = await sql.connect(config);
-
-    await pool.request()
-        .input('name', sql.NVarChar, req.body.name)
-        .input('email', sql.NVarChar, req.body.email)
-        .input('password', sql.NVarChar, req.body.password)
-        .query("INSERT INTO Users (Name, Email, Password, Role) VALUES (@name,@email,@password,'user')");
-
-    res.redirect('/login');
+app.get('/checkout', (req, res) => {
+  const cart = req.session.cart || [];
+  if (cart.length === 0) return res.redirect('/products');
+  const total = cart.reduce((sum, item) => sum + Number(item.product.Price) * item.quantity, 0);
+  res.render('checkout', { cart, total, cartCount: cart.length, error: null });
 });
-
-app.post('/login', async (req, res) => {
-    let pool = await sql.connect(config);
-
-    let result = await pool.request()
-        .input('email', sql.NVarChar, req.body.email)
-        .input('password', sql.NVarChar, req.body.password)
-        .query("SELECT * FROM Users WHERE Email=@email AND Password=@password");
-
-    if (result.recordset.length > 0) {
-        req.session.user = result.recordset[0];
-        res.redirect('/');
-    } else res.send("Invalid login");
-});
-
-// CHECKOUT
-app.get('/checkout', (req, res) => res.render('checkout'));
 
 app.post('/checkout', async (req, res) => {
-    let pool = await sql.connect(config);
-
-    for (let item of req.session.cart) {
-        await pool.request()
-            .input('userId', sql.Int, req.session.user?.Id || 1)
-            .input('productId', sql.Int, item.product.Id)
-            .input('quantity', sql.Int, item.quantity)
-            .query("INSERT INTO Orders (UserId, ProductId, Quantity) VALUES (@userId,@productId,@quantity)");
-    }
-
+  const cart = req.session.cart || [];
+  if (cart.length === 0) return res.redirect('/products');
+  const { name, email, address, cardNumber } = req.body;
+  try {
+    const payment = processPayment(cardNumber);
+    const orderId = await createOrder({ name, email, address }, cart, payment);
     req.session.cart = [];
-    res.send("Payment successful!");
+    res.redirect(`/order/${orderId}`);
+  } catch (err) {
+    const total = cart.reduce((sum, item) => sum + Number(item.product.Price) * item.quantity, 0);
+    res.render('checkout', { cart, total, cartCount: cart.length, error: err.message });
+  }
 });
 
-// ADMIN
-function isAdmin(req, res, next) {
-    if (req.session.user && req.session.user.Role === 'admin') next();
-    else res.send("Access denied");
-}
-
-app.get('/admin', isAdmin, async (req, res) => {
-    let pool = await sql.connect(config);
-
-    let products = await pool.request().query("SELECT * FROM Products");
-    let orders = await pool.request().query("SELECT * FROM Orders");
-
-    res.render('admin', { products: products.recordset, orders: orders.recordset });
+app.get('/order/:id', (req, res) => {
+  res.render('order-success', { orderId: req.params.id, cartCount: 0 });
 });
 
-// IMAGE UPLOAD
-app.post('/admin/upload', isAdmin, upload.single('image'), async (req, res) => {
-
-    const containerClient = blobServiceClient.getContainerClient(containerName);
-    const blobName = Date.now() + "-" + req.file.originalname;
-
-    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-    await blockBlobClient.uploadData(req.file.buffer);
-
-    const imageUrl = blockBlobClient.url;
-
-    let pool = await sql.connect(config);
-
-    await pool.request()
-        .input('name', sql.NVarChar, req.body.name)
-        .input('price', sql.Decimal, req.body.price)
-        .input('image', sql.NVarChar, imageUrl)
-        .query("INSERT INTO Products (Name, Price, ImageUrl) VALUES (@name,@price,@image)");
-
-    res.redirect('/admin');
+initDB().then(() => {
+  app.listen(port, () => console.log(`🚀 CST8912 running on Azure with Blob Storage images`));
 });
-
-app.listen(process.env.PORT || 3000);
