@@ -1,0 +1,21 @@
+{
+  "name": "cst8912-ecommerce-store",
+  "version": "1.0.0",
+  "description": "CST8912 Ecommerce Store Project with Azure SQL and Azure App Service",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "echo \"No tests configured yet\""
+  },
+  "keywords": [],
+  "author": "CST8912",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "dotenv": "^17.4.1",
+    "ejs": "^5.0.1",
+    "express": "^5.2.1",
+    "mssql": "^12.2.1"
+  }
+}

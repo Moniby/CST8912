@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#d8f3df"/>
+  <rect x="120" y="70" width="160" height="170" rx="24" fill="#2fb65d"/>
+  <path d="M120 95 L85 125 L105 155 L120 145 Z" fill="#23994c"/>
+  <path d="M280 95 L315 125 L295 155 L280 145 Z" fill="#23994c"/>
+  <text x="200" y="280" text-anchor="middle" font-size="28" fill="#0d3b1e" font-family="Arial">Shirt</text>
+</svg>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/styles/main.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="container hero-top">
+        <a class="secondary-btn" href="/products">Continue Shopping</a>
+        <strong>Cart (<%= cartCount %>)</strong>
+      </div>
+    </header>
+
+    <main class="container">
+      <h1>Your Cart</h1>
+      <% if (cart.length === 0) { %>
+      <p>Your cart is empty. Add products from the store.</p>
+      <% } else { %>
+      <div class="table-wrap">
+        <table class="cart-table">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Price</th>
+              <th>Qty</th>
+              <th>Subtotal</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% cart.forEach((item) => { %>
+            <tr>
+              <td><%= item.product.Name %></td>
+              <td>$<%= Number(item.product.Price).toFixed(2) %></td>
+              <td>
+                <form action="/cart/update" method="post" class="inline-form">
+                  <input type="hidden" name="productId" value="<%= item.product.Id %>" />
+                  <input type="number" name="quantity" min="1" value="<%= item.quantity %>" />
+                  <button type="submit">Update</button>
+                </form>
+              </td>
+              <td>$<%= (Number(item.product.Price) * item.quantity).toFixed(2) %></td>
+              <td>
+                <form action="/cart/remove" method="post">
+                  <input type="hidden" name="productId" value="<%= item.product.Id %>" />
+                  <button class="danger-btn" type="submit">Remove</button>
+                </form>
+              </td>
+            </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+      <p class="total-line">Total: $<%= total.toFixed(2) %></p>
+      <a class="primary-link" href="/checkout">Proceed to Checkout</a>
+      <% } %>
+    </main>
+  </body>
+</html>

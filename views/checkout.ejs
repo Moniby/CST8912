@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/styles/main.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="container hero-top">
+        <a class="secondary-btn" href="/cart">Back to Cart</a>
+        <strong>Cart (<%= cartCount %>)</strong>
+      </div>
+    </header>
+    <main class="container">
+      <h1>Checkout</h1>
+      <p class="total-line">Order Total: $<%= total.toFixed(2) %></p>
+
+      <% if (error) { %>
+      <p class="error-text"><%= error %></p>
+      <% } %>
+
+      <form class="checkout-form" action="/checkout" method="post">
+        <label for="name">Full Name</label>
+        <input id="name" name="name" value="<%= form.name %>" required />
+
+        <label for="email">Email</label>
+        <input id="email" type="email" name="email" value="<%= form.email %>" required />
+
+        <label for="address">Shipping Address</label>
+        <textarea id="address" name="address" rows="4" required><%= form.address %></textarea>
+
+        <label for="cardNumber">Card Number</label>
+        <input id="cardNumber" name="cardNumber" inputmode="numeric" value="<%= form.cardNumber %>" required />
+
+        <label for="expiry">Expiry (MM/YY)</label>
+        <input id="expiry" name="expiry" value="<%= form.expiry %>" required />
+
+        <label for="cvv">CVV</label>
+        <input id="cvv" name="cvv" inputmode="numeric" value="<%= form.cvv %>" required />
+
+        <button type="submit">Place Order</button>
+      </form>
+    </main>
+  </body>
+</html>
