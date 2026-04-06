@@ -1,48 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title || "Checkout" %></title>
-    <link rel="stylesheet" href="/styles/main.css">
-</head>
-<body>
-    <header>
-        <div class="container">
-            <div class="hero">
-                <div class="hero-top">
-                    <h1>CST8912 Ecommerce Store Project</h1>
-                    <a href="/cart" class="cart-link">Cart (<%= cartCount || 0 %>)</a>
-                </div>
-            </div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/styles/main.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="container">
+        <nav class="top-nav centered-nav">
+          <a href="/">Home</a>
+          <a href="/about">About Us</a>
+          <a href="/products">Products</a>
+          <a href="/cart">Cart (<%= cartCount %>)</a>
+        </nav>
+
+        <div class="hero-top">
+          <div>
+            <h1>Checkout</h1>
+            <p>Complete your order by providing your details below.</p>
+          </div>
+          <a class="secondary-btn" href="/cart">Back to Cart</a>
         </div>
+      </div>
     </header>
 
-    <div class="container">
-        <a href="/cart" class="secondary-btn">← Back to Cart</a>
-        
-        <h2>Checkout</h2>
-        <p>Order Total: $<%= total ? total.toFixed(2) : '0.00' %></p>
+    <main class="container">
+      <div class="welcome-card">
+        <h2>Order Summary</h2>
+        <p><strong>Total Amount to Pay: $<%= total.toFixed(2) %></strong></p>
+        <hr style="border: 0; border-top: 1px solid #c8e8d3; margin: 1.5rem 0;" />
 
-        <% if (error) { %>
-            <p class="error-text"><%= error %></p>
-        <% } %>
+        <h2>Shipping & Payment Details</h2>
+        <form action="/checkout" method="post">
+          <div style="margin-bottom: 1rem;">
+            <label for="customerName" style="display: block; font-weight: bold;">Full Name</label>
+            <input type="text" id="customerName" name="customerName" required placeholder="Enter your full name" />
+          </div>
 
-        <form action="/checkout" method="POST" class="checkout-form">
-            <label>Full Name</label>
-            <input type="text" name="name" required>
-            
-            <label>Email</label>
-            <input type="email" name="email" required>
-            
-            <label>Shipping Address</label>
-            <textarea name="address" required></textarea>
-            
-            <label>Card Number</label>
-            <input type="text" name="cardNumber" placeholder="1234 5678 9012 3456" required>
-            
-            <button type="submit">Place Order</button>
+          <div style="margin-bottom: 1rem;">
+            <label for="address" style="display: block; font-weight: bold;">Shipping Address</label>
+            <textarea id="address" name="address" required placeholder="Enter your full shipping address" rows="3"></textarea>
+          </div>
+
+          <div style="margin-bottom: 1rem;">
+            <label for="payment" style="display: block; font-weight: bold;">Payment Method</label>
+            <select id="payment" name="paymentMethod" required>
+              <option value="Credit Card">Credit Card</option>
+              <option value="Debit Card">Debit Card</option>
+              <option value="PayPal">PayPal</option>
+            </select>
+          </div>
+
+          <div style="margin-top: 2rem;">
+            <button type="submit" class="primary-link" style="width: 100%; font-size: 1.1rem; padding: 1rem;">
+              Place Order ($<%= total.toFixed(2) %>)
+            </button>
+          </div>
         </form>
-    </div>
-</body>
+      </div>
+    </main>
+  </body>
 </html>
