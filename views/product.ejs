@@ -1,45 +1,50 @@
-<<<<<<< HEAD
-<h2><%= product.Name %></h2>
-<p>$<%= product.Price %></p>
-
-<form method="POST" action="/cart/add">
-<input type="hidden" name="productId" value="<%= product.Id %>">
-<button>Add to Cart</button>
-</form>
-=======
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title><%= title %></title>
-    <link rel="stylesheet" href="/styles/main.css" />
-  </head>
-  <body>
-    <header class="hero">
-      <div class="container hero-top">
-        <a class="secondary-btn" href="/products">Back to Products</a>
-        <a class="cart-link" href="/cart">Cart (<%= cartCount %>)</a>
-      </div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title || "Product" %></title>
+    <link rel="stylesheet" href="/styles/main.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="hero">
+                <div class="hero-top">
+                    <h1>CST8912 Ecommerce Store Project</h1>
+                    <a href="/cart" class="cart-link">Cart (<%= cartCount || 0 %>)</a>
+                </div>
+                <nav class="top-nav">
+                    <a href="/">Home</a>
+                    <a href="/products">Products</a>
+                    <a href="/about">About</a>
+                </nav>
+            </div>
+        </div>
     </header>
 
-    <main class="container">
-      <section class="product-detail">
-        <img src="<%= product.ImageUrl %>" alt="<%= product.Name %>" />
-        <div>
-          <h1><%= product.Name %></h1>
-          <p class="category"><%= product.Category %></p>
-          <p><%= product.Description %></p>
-          <p class="price">$<%= Number(product.Price).toFixed(2) %></p>
-          <form action="/cart/add" method="post" class="inline-form">
-            <input type="hidden" name="productId" value="<%= product.Id %>" />
-            <label for="quantity">Qty</label>
-            <input id="quantity" type="number" name="quantity" min="1" value="1" />
-            <button type="submit">Add to Cart</button>
-          </form>
+    <div class="container">
+        <a href="/products" class="secondary-btn">← Back to Products</a>
+        
+        <% if (product) { %>
+        <div class="product-detail">
+            <img src="<%= product.ImageUrl || '' %>" alt="<%= product.Name %>">
+            <div>
+                <h1><%= product.Name %></h1>
+                <p class="price">$<%= Number(product.Price || 0).toFixed(2) %></p>
+                <p><%= product.Description || '' %></p>
+                
+                <form action="/cart/add" method="POST" class="inline-form">
+                    <input type="hidden" name="productId" value="<%= product.Id %>">
+                    <label>Qty</label>
+                    <input type="number" name="quantity" value="1" min="1" style="width:60px;">
+                    <button type="submit">Add to Cart</button>
+                </form>
+            </div>
         </div>
-      </section>
-    </main>
-  </body>
+        <% } else { %>
+        <p>Product not found.</p>
+        <% } %>
+    </div>
+</body>
 </html>
->>>>>>> 2fa16a4 (Initial commit)
