@@ -4,7 +4,7 @@
   --green-500: #2fb65d;
   --green-100: #e7f7ec;
   --text-900: #1d1d1d;
-  --accent-green: #4cd17c; /* The bright green for Shop Now */
+  --accent-green: #4cd17c;
 }
 
 * {
@@ -13,96 +13,119 @@
 
 body {
   margin: 0;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: Arial, sans-serif;
   background-color: var(--green-100);
   color: var(--text-900);
-  line-height: 1.6;
 }
 
-/* Fluid Container */
 .container {
-  width: 95%;
-  max-width: 1400px;
+  width: 90%;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
-/* Header & Hero Section */
+/* Header & Hero */
 .hero {
   background: linear-gradient(120deg, var(--green-900), var(--green-700));
   color: #fff;
-  padding: 2.5rem 0;
+  padding: 2rem 0;
   margin-bottom: 2rem;
 }
 
-/* Navigation - Centered at the top */
-.top-nav.centered-nav {
+/* Centered Top Nav */
+.centered-nav {
   display: flex;
   justify-content: center;
-  gap: 2rem;
-  margin-bottom: 2rem;
+  gap: 20px;
+  margin-bottom: 25px;
 }
 
-.top-nav a {
+.centered-nav a {
   color: #fff;
   text-decoration: none;
-  font-weight: 700;
-  font-size: 1rem;
-  opacity: 0.9;
+  font-weight: bold;
 }
 
-.top-nav a:hover {
-  opacity: 1;
-  text-decoration: underline;
-}
-
-/* Hero Content Layout (Title vs Button) */
+/* Hero Content (Title left, Button right) */
 .hero-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 2rem;
-  flex-wrap: wrap;
-}
-
-.hero-text {
-  flex: 1;
-  min-width: 300px;
 }
 
 .hero-text h1 {
-  margin: 0 0 0.5rem;
-  font-size: 2.5rem;
-}
-
-.hero-text p {
-  font-size: 1.1rem;
-  opacity: 0.9;
   margin: 0;
+  font-size: 1.8rem;
 }
 
-/* The Bright Green "Shop Now" Button */
 .shop-now-btn {
   background-color: var(--accent-green);
   color: white;
-  padding: 0.8rem 1.8rem;
-  border-radius: 8px;
+  padding: 10px 20px;
+  border-radius: 5px;
   text-decoration: none;
   font-weight: bold;
-  white-space: nowrap;
-  transition: transform 0.2s, background 0.2s;
 }
 
-.shop-now-btn:hover {
-  background-color: #3eb469;
-  transform: scale(1.05);
+/* Card Styling - FIXING THE GIANT IMAGE ISSUE */
+.welcome-card {
+  background: white;
+  padding: 30px;
+  border-radius: 10px;
+  margin-top: 20px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 
-/* Centered Welcome/Confirmation Card */
-.welcome-card, .confirmation-card {
-  background: #fff;
+/* Product Grid Fix */
+.product-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center; /* Keeps them centered if there are only 1-2 items */
+}
+
+.product-card {
+  background: white;
+  width: 300px; /* Forces cards to stay a reasonable size */
+  padding: 15px;
+  border-radius: 10px;
   border: 1px solid #c8e8d3;
-  border-radius: 12px;
-  padding: 2.5rem;
-  margin: 2rem auto;
-  max-width: 800px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0
+}
+
+.product-card img {
+  width: 100%;
+  height: 200px; /* Keeps image height consistent */
+  object-fit: contain; /* Prevents stretching */
+  background: #f9f9f9;
+  border-radius: 5px;
+}
+
+.price {
+  font-weight: bold;
+  color: var(--green-700);
+  font-size: 1.1rem;
+}
+
+/* Generic Button styles */
+.cart-link, .primary-link, button {
+  background: var(--green-500);
+  color: white;
+  padding: 8px 15px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+/* Mobile Fix */
+@media (max-width: 700px) {
+  .hero-content {
+    flex-direction: column;
+    text-align: center;
+    gap: 15px;
+  }
+  .product-card {
+    width: 100%; /* Stacks cards on mobile */
+  }
+}
