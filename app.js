@@ -38,13 +38,40 @@ function withBlobUrl(url) {
   return blobBaseUrl ? `${blobBaseUrl}/${clean}` : url;
 }
 
+// Optimized Database Initialization
 async function initDB() {
   try {
     const pool = await sql.connect(config);
-    // ... (same table creation as before - keeping it short for now)
+    
+    // Create Products Table
     await pool.request().query(`
       IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Products' AND xtype='U')
       CREATE TABLE Products (Id INT IDENTITY(1,1) PRIMARY KEY, Name NVARCHAR(100), Category NVARCHAR(50), Price DECIMAL(10,2), Description NVARCHAR(255), ImageUrl NVARCHAR(255));
+    `);
+
+    // Create Orders Table
+    await pool.request().query(`
+      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Orders' AND xtype='U')
+      CREATE TABLE Orders (
+          Id INT IDENTITY(1,1) PRIMARY KEY,
+          CustomerName NVARCHAR(100),
+          ShippingAddress NVARCHAR(MAX),
+          TotalAmount DECIMAL(10,2),
+          PaymentReference NVARCHAR(100),
+          OrderDate DATETIME DEFAULT GETDATE()
+      );
+    `);
+
+    // Create OrderItems Table
+    await pool.request().query(`
+      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='OrderItems' AND xtype='U')
+      CREATE TABLE OrderItems (
+          Id INT IDENTITY(1,1) PRIMARY KEY,
+          OrderId INT FOREIGN KEY REFERENCES Orders(Id),
+          ProductName NVARCHAR(100),
+          Quantity INT,
+          PriceAtPurchase DECIMAL(10,2)
+      );
     `);
 
     const count = await pool.request().query("SELECT COUNT(*) as cnt FROM Products");
@@ -83,7 +110,6 @@ async function getProductById(id) {
   return products.find(p => Number(p.Id) === Number(id));
 }
 
-// Safe render helper
 function safeRender(res, view, data = {}) {
   const defaults = {
     title: "CST8912 Ecommerce",
@@ -101,10 +127,11 @@ function safeRender(res, view, data = {}) {
   res.render(view, { ...defaults, ...data });
 }
 
-// Routes
+// --- Routes ---
+
 app.get('/', async (req, res) => {
   const products = await getProducts();
-  safeRender(res, 'index', { 
+  safeRender(res, 'home', { 
     title: "CST8912 Ecommerce Store Project", 
     products, 
     cartCount: (req.session.cart || []).length 
@@ -114,7 +141,6 @@ app.get('/', async (req, res) => {
 app.get('/products', async (req, res) => {
   const search = (req.query.search || '').trim();
   const category = (req.query.category || '').trim();
-
   let products = await getProducts();
 
   if (search) {
@@ -128,8 +154,7 @@ app.get('/products', async (req, res) => {
   }
 
   const categories = [...new Set((await getProducts()).map(p => p.Category))];
-
-  safeRender(res, 'index', {   // many templates use 'index' for products page
+  safeRender(res, 'index', { 
     title: "Products",
     products,
     categories,
@@ -156,14 +181,13 @@ app.get('/about', (req, res) => {
     });
 });
 
-
 app.post('/cart/add', async (req, res) => {
   const product = await getProductById(req.body.productId);
   if (!product) return res.redirect('/products');
   if (!req.session.cart) req.session.cart = [];
   const existing = req.session.cart.find(i => Number(i.product.Id) === Number(product.Id));
-  if (existing) existing.quantity++;
-  else req.session.cart.push({ product, quantity: 1 });
+  if (existing) existing.quantity += parseInt(req.body.quantity || 1);
+  else req.session.cart.push({ product, quantity: parseInt(req.body.quantity || 1) });
   res.redirect('/cart');
 });
 
@@ -175,15 +199,15 @@ app.get('/cart', (req, res) => {
 
 app.post('/cart/update', (req, res) => {
   const cart = req.session.cart || [];
-  const idx = parseInt(req.body.index);
-  if (cart[idx]) cart[idx].quantity = parseInt(req.body.quantity) || 1;
+  const productId = req.body.productId;
+  const item = cart.find(i => Number(i.product.Id) === Number(productId));
+  if (item) item.quantity = parseInt(req.body.quantity) || 1;
   res.redirect('/cart');
 });
 
 app.post('/cart/remove', (req, res) => {
-  const cart = req.session.cart || [];
-  const idx = parseInt(req.body.index);
-  if (cart[idx]) cart.splice(idx, 1);
+  const productId = req.body.productId;
+  req.session.cart = (req.session.cart || []).filter(i => Number(i.product.Id) !== Number(productId));
   res.redirect('/cart');
 });
 
@@ -191,67 +215,73 @@ app.get('/checkout', (req, res) => {
   const cart = req.session.cart || [];
   if (cart.length === 0) return res.redirect('/products');
   const total = cart.reduce((sum, item) => sum + Number(item.product.Price) * item.quantity, 0);
-  safeRender(res, 'checkout', { title: "Checkout", cart, total, cartCount: cart.length, error: null });
+  safeRender(res, 'checkout', { title: "Checkout", cart, total, cartCount: cart.length });
 });
 
+// Demo Payment and Database Storage Logic
 app.post('/checkout', async (req, res) => {
   const cart = req.session.cart || [];
   if (cart.length === 0) return res.redirect('/products');
-  const { name, email, address, cardNumber } = req.body;
+  
+  const { customerName, address } = req.body;
+  const total = cart.reduce((sum, item) => sum + Number(item.product.Price) * item.quantity, 0);
+
   try {
-    const payment = processPayment(cardNumber);
-    const orderId = await createOrder({ name, email, address }, cart, payment);
-    req.session.cart = [];
-    res.redirect(`/order/${orderId}`);
+    // 1. Mock Payment Reference
+    const demoPaymentRef = "DEMO-" + Math.random().toString(36).substring(2, 11).toUpperCase();
+
+    // 2. Database Transaction for Order Storage
+    const pool = await sql.connect(config);
+    const transaction = new sql.Transaction(pool);
+    
+    await transaction.begin();
+    try {
+      const orderResult = await transaction.request()
+        .input('name', sql.NVarChar, customerName)
+        .input('address', sql.NVarChar, address)
+        .input('total', sql.Decimal(10, 2), total)
+        .input('ref', sql.NVarChar, demoPaymentRef)
+        .query(`INSERT INTO Orders (CustomerName, ShippingAddress, TotalAmount, PaymentReference) 
+                OUTPUT INSERTED.Id VALUES (@name, @address, @total, @ref)`);
+      
+      const orderId = orderResult.recordset[0].Id;
+
+      for (const item of cart) {
+        await transaction.request()
+          .input('orderId', sql.Int, orderId)
+          .input('name', sql.NVarChar, item.product.Name)
+          .input('qty', sql.Int, item.quantity)
+          .input('price', sql.Decimal(10, 2), item.product.Price)
+          .query(`INSERT INTO OrderItems (OrderId, ProductName, Quantity, PriceAtPurchase) 
+                  VALUES (@orderId, @name, @qty, @price)`);
+      }
+
+      await transaction.commit();
+      req.session.cart = [];
+      res.redirect(`/order/${orderId}`);
+
+    } catch (dbErr) {
+      await transaction.rollback();
+      throw dbErr;
+    }
   } catch (err) {
-    const total = cart.reduce((sum, item) => sum + Number(item.product.Price) * item.quantity, 0);
-    safeRender(res, 'checkout', { title: "Checkout", cart, total, cartCount: cart.length, error: err.message });
+    console.error("Order Processing Error:", err);
+    safeRender(res, 'checkout', { 
+      title: "Checkout", cart, total, cartCount: cart.length, error: "Database error occurred." 
+    });
   }
 });
 
 app.get('/order/:id', (req, res) => {
+  const total = 0; // In a real app, fetch from DB
   safeRender(res, 'order-success', { 
-    title: `Order #${req.params.id}`, 
-    orderId: req.params.id, 
+    title: `Order Confirmed`, 
+    orderId: req.params.id,
+    total: 0,
     cartCount: 0 
   });
 });
 
-function processPayment(cardNumber) {
-  const clean = String(cardNumber || '').replace(/\D/g, '');
-  if (clean.length < 12) throw new Error("Invalid card number");
-  return { reference: `pay_${Date.now()}`, status: "PAID" };
-}
-
-async function createOrder(customer, cart, payment) {
-  const total = cart.reduce((sum, item) => sum + Number(item.product.Price) * item.quantity, 0);
-  const pool = await sql.connect(config);
-
-  const orderResult = await pool.request()
-    .input('name', sql.NVarChar, customer.name)
-    .input('email', sql.NVarChar, customer.email)
-    .input('address', sql.NVarChar, customer.address)
-    .input('total', sql.Decimal(10,2), total)
-    .input('ref', sql.NVarChar, payment.reference)
-    .input('status', sql.NVarChar, payment.status)
-    .query(`
-      INSERT INTO Orders (CustomerName, CustomerEmail, ShippingAddress, TotalAmount, PaymentReference, PaymentStatus)
-      OUTPUT INSERTED.Id VALUES (@name, @email, @address, @total, @ref, @status)
-    `);
-
-  const orderId = orderResult.recordset[0].Id;
-
-  for (const item of cart) {
-    await pool.request()
-      .input('orderId', sql.Int, orderId)
-      .input('name', sql.NVarChar, item.product.Name)
-      .input('price', sql.Decimal(10,2), item.product.Price)
-      .input('qty', sql.Int, item.quantity)
-      .query(`INSERT INTO OrderItems (OrderId, ProductName, UnitPrice, Quantity) VALUES (@orderId, @name, @price, @qty)`);
-  }
-  return orderId;
-}
-
 initDB().then(() => {
-  app.listen(port, () => console.log(`🚀 CST8912 running`));
+  app.listen(port, () => console.log(`🚀 CST8912 running on port ${port}`));
 });
