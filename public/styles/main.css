@@ -20,7 +20,7 @@ body {
 
 /* Updated to fill more of the screen on wide displays */
 .container {
-  width: 95%;
+  width: 100%;
   max-width: 1400px;
   margin: 0 auto;
 }
