@@ -20,9 +20,9 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // Azure SQL CONFIG (UPDATE)
 const config = {
-    user: 'YOUR_USERNAME',
-    password: 'YOUR_PASSWORD',
-    server: 'YOUR_SERVER.database.windows.net',
+    user: 'CommerceProj',
+    password: 'Com@2026',
+    server: 'ecommerce-sql-unique.database.windows.net',
     database: 'ecommerce-db',
     options: { encrypt: true }
 };
