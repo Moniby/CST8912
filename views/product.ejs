@@ -1,0 +1,7 @@
+<h2><%= product.Name %></h2>
+<p>$<%= product.Price %></p>
+
+<form method="POST" action="/cart/add">
+<input type="hidden" name="productId" value="<%= product.Id %>">
+<button>Add to Cart</button>
+</form>
