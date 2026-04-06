@@ -1,19 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title || "Order Confirmed" %></title>
-    <link rel="stylesheet" href="/styles/main.css">
-</head>
-<body>
-    <div class="container">
-        <div class="confirmation-card">
-            <h2>Thank you for your order!</h2>
-            <p>Your order number is <strong>#<%= orderId || 'N/A' %></strong></p>
-            <p>Payment status: <strong>PAID</strong></p>
-            <a href="/products" class="primary-link">Continue Shopping</a>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/styles/main.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="container">
+        <nav class="top-nav centered-nav">
+          <a href="/">Home</a>
+          <a href="/about">About Us</a>
+          <a href="/products">Products</a>
+          <a href="/cart">Cart (0)</a>
+        </nav>
+        <div class="hero-top">
+          <h1>Success!</h1>
+          <p>Thank you for your purchase.</p>
         </div>
-    </div>
-</body>
+      </div>
+    </header>
+
+    <main class="container">
+      <div class="welcome-card" style="text-align: center;">
+        <h2 style="color: var(--green-700);">Order #<%= orderId %> Confirmed</h2>
+        <p>A demo payment was processed successfully with reference ID: <strong>DEMO-MODE</strong>.</p>
+        <p>Total Charged: <strong>$<%= total.toFixed(2) %></strong></p>
+        <hr style="border: 0; border-top: 1px solid #c8e8d3; margin: 2rem 0;" />
+        <a href="/products" class="primary-link">Continue Shopping</a>
+      </div>
+    </main>
+  </body>
 </html>
