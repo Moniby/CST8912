@@ -28,7 +28,7 @@ const config = {
 };
 
 // Azure Blob CONFIG (UPDATE)
-const blobServiceClient = BlobServiceClient.fromConnectionString("YOUR_CONNECTION_STRING");
+const blobServiceClient = BlobServiceClient.fromConnectionString("DefaultEndpointsProtocol=https;AccountName=ecommercestorage132;AccountKey=kWVt3g5lggLUoyc+lz0++Un85I0Sbwb8XyHKyezzcIxOWLFL8DT+NYxe06n1IYs38SZb+ZW2xlfr+AStJ+/M7g==;EndpointSuffix=core.windows.net");
 const containerName = "product-images";
 
 // Init cart
