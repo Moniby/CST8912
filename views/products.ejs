@@ -1,0 +1,13 @@
+<h2>Products</h2>
+
+<form>
+<input name="search" placeholder="Search..." value="<%= search %>">
+<button>Search</button>
+</form>
+
+<% products.forEach(p => { %>
+<p>
+<%= p.Name %> - $<%= p.Price %>
+<a href="/product/<%= p.Id %>">View</a>
+</p>
+<% }) %>
