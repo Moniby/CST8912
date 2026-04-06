@@ -15,7 +15,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'cst8912-simple-secret-2026',
   resave: false,
-  saveUninitialized: true
+  saveUninitialized: true,
+  cookie: { secure: false } // Set to true if using production HTTPS
 }));
 
 const config = {
@@ -38,19 +39,15 @@ function withBlobUrl(url) {
   return blobBaseUrl ? `${blobBaseUrl}/${clean}` : url;
 }
 
-// Optimized Database Initialization
+// Database Initialization
 async function initDB() {
   try {
     const pool = await sql.connect(config);
     
-    // Create Products Table
     await pool.request().query(`
       IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Products' AND xtype='U')
       CREATE TABLE Products (Id INT IDENTITY(1,1) PRIMARY KEY, Name NVARCHAR(100), Category NVARCHAR(50), Price DECIMAL(10,2), Description NVARCHAR(255), ImageUrl NVARCHAR(255));
-    `);
-
-    // Create Orders Table
-    await pool.request().query(`
+      
       IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Orders' AND xtype='U')
       CREATE TABLE Orders (
           Id INT IDENTITY(1,1) PRIMARY KEY,
@@ -60,10 +57,7 @@ async function initDB() {
           PaymentReference NVARCHAR(100),
           OrderDate DATETIME DEFAULT GETDATE()
       );
-    `);
 
-    // Create OrderItems Table
-    await pool.request().query(`
       IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='OrderItems' AND xtype='U')
       CREATE TABLE OrderItems (
           Id INT IDENTITY(1,1) PRIMARY KEY,
@@ -74,20 +68,9 @@ async function initDB() {
       );
     `);
 
-    const count = await pool.request().query("SELECT COUNT(*) as cnt FROM Products");
-    if (count.recordset[0].cnt === 0) {
-      await pool.request().query(`
-        INSERT INTO Products (Name, Category, Price, Description, ImageUrl)
-        VALUES 
-        ('Classic Shirt', 'Shirt', 39.99, 'Comfortable cotton shirt', '/images/shirt.svg'),
-        ('Modern Pants', 'Pants', 59.99, 'Slim-fit pants', '/images/pants.svg'),
-        ('Sport Sneakers', 'Sneakers', 89.99, 'Lightweight sneakers', '/images/sneakers.svg');
-      `);
-    }
-
-    console.log('✅ Azure SQL ready');
+    console.log('✅ Azure SQL tables verified');
   } catch (err) {
-    console.log('⚠️ DB warning:', err.message);
+    console.log('⚠️ DB Init warning:', err.message);
   }
 }
 
@@ -97,11 +80,7 @@ async function getProducts() {
     const result = await pool.request().query("SELECT * FROM Products ORDER BY Id");
     return result.recordset.map(p => ({ ...p, ImageUrl: withBlobUrl(p.ImageUrl) }));
   } catch (e) {
-    return [
-      { Id: 1, Name: "Classic Shirt", Category: "Shirt", Price: 39.99, ImageUrl: withBlobUrl("/images/shirt.svg") },
-      { Id: 2, Name: "Modern Pants", Category: "Pants", Price: 59.99, ImageUrl: withBlobUrl("/images/pants.svg") },
-      { Id: 3, Name: "Sport Sneakers", Category: "Sneakers", Price: 89.99, ImageUrl: withBlobUrl("/images/sneakers.svg") }
-    ];
+    return [];
   }
 }
 
@@ -122,7 +101,6 @@ function safeRender(res, view, data = {}) {
     total: 0,
     error: null,
     orderId: "",
-    product: null,
     message: ""
   };
   res.render(view, { ...defaults, ...data });
@@ -132,55 +110,29 @@ function safeRender(res, view, data = {}) {
 
 app.get('/', async (req, res) => {
   const products = await getProducts();
-  safeRender(res, 'home', { 
-    title: "CST8912 Ecommerce Store Project", 
+  safeRender(res, 'index', { 
+    title: "Home", 
     products, 
     cartCount: (req.session.cart || []).length 
   });
 });
 
 app.get('/products', async (req, res) => {
-  const search = (req.query.search || '').trim();
-  const category = (req.query.category || '').trim();
-  let products = await getProducts();
-
-  if (search) {
-    products = products.filter(p => 
-      p.Name.toLowerCase().includes(search.toLowerCase()) || 
-      (p.Description && p.Description.toLowerCase().includes(search.toLowerCase()))
-    );
-  }
-  if (category) {
-    products = products.filter(p => p.Category === category);
-  }
-
-  const categories = [...new Set((await getProducts()).map(p => p.Category))];
+  const products = await getProducts();
+  const categories = [...new Set(products.map(p => p.Category))];
   safeRender(res, 'index', { 
     title: "Products",
     products,
     categories,
-    search,
-    selectedCategory: category,
     cartCount: (req.session.cart || []).length
   });
 });
 
-app.get('/product/:id', async (req, res) => {
-  const product = await getProductById(req.params.id);
-  if (!product) return res.send("Product not found");
-  safeRender(res, 'product', { 
-    title: product.Name, 
-    product, 
-    cartCount: (req.session.cart || []).length 
-  });
-});
-
-// Fixed About Route
 app.get('/about', (req, res) => {
-    res.render('about', { 
-        title: 'About Us',
-        cartCount: req.session.cart ? req.session.cart.length : 0 
-    });
+  res.render('about', { 
+    title: 'About Us',
+    cartCount: req.session.cart ? req.session.cart.length : 0 
+  });
 });
 
 app.post('/cart/add', async (req, res) => {
@@ -188,8 +140,8 @@ app.post('/cart/add', async (req, res) => {
   if (!product) return res.redirect('/products');
   if (!req.session.cart) req.session.cart = [];
   const existing = req.session.cart.find(i => Number(i.product.Id) === Number(product.Id));
-  if (existing) existing.quantity += parseInt(req.body.quantity || 1);
-  else req.session.cart.push({ product, quantity: parseInt(req.body.quantity || 1) });
+  if (existing) existing.quantity++;
+  else req.session.cart.push({ product, quantity: 1 });
   res.redirect('/cart');
 });
 
@@ -199,48 +151,34 @@ app.get('/cart', (req, res) => {
   safeRender(res, 'cart', { title: "Your Cart", cart, total, cartCount: cart.length });
 });
 
-app.post('/cart/update', (req, res) => {
-  const cart = req.session.cart || [];
-  const productId = req.body.productId;
-  const item = cart.find(i => Number(i.product.Id) === Number(productId));
-  if (item) item.quantity = parseInt(req.body.quantity) || 1;
-  res.redirect('/cart');
-});
-
-app.post('/cart/remove', (req, res) => {
-  const productId = req.body.productId;
-  req.session.cart = (req.session.cart || []).filter(i => Number(i.product.Id) !== Number(productId));
-  res.redirect('/cart');
-});
-
 app.get('/checkout', (req, res) => {
   const cart = req.session.cart || [];
-  if (cart.length === 0) return res.redirect('/products');
   const total = cart.reduce((sum, item) => sum + Number(item.product.Price) * item.quantity, 0);
   safeRender(res, 'checkout', { title: "Checkout", cart, total, cartCount: cart.length });
 });
 
-// Demo Payment and Success Message Logic
+// IMPROVED CHECKOUT ROUTE
 app.post('/checkout', async (req, res) => {
-  const cart = req.session.cart || [];
-  if (cart.length === 0) return res.redirect('/products');
-  
+  let cart = req.session.cart || [];
   const { customerName, address } = req.body;
-  const total = cart.reduce((sum, item) => sum + Number(item.product.Price) * item.quantity, 0);
+  
+  const total = cart.reduce((sum, item) => {
+    const price = (item.product && item.product.Price) ? Number(item.product.Price) : 0;
+    return sum + (price * item.quantity);
+  }, 0);
 
   try {
-    // 1. Mock Payment Reference
+    console.log(`Processing order for ${customerName}. Items in cart: ${cart.length}`);
     const demoPaymentRef = "DEMO-" + Math.random().toString(36).substring(2, 11).toUpperCase();
 
-    // 2. Database Transaction for Order Storage
     const pool = await sql.connect(config);
     const transaction = new sql.Transaction(pool);
     
     await transaction.begin();
     try {
       const orderResult = await transaction.request()
-        .input('name', sql.NVarChar, customerName)
-        .input('address', sql.NVarChar, address)
+        .input('name', sql.NVarChar, customerName || 'Test User')
+        .input('address', sql.NVarChar, address || 'Test Address')
         .input('total', sql.Decimal(10, 2), total)
         .input('ref', sql.NVarChar, demoPaymentRef)
         .query(`INSERT INTO Orders (CustomerName, ShippingAddress, TotalAmount, PaymentReference) 
@@ -248,21 +186,22 @@ app.post('/checkout', async (req, res) => {
       
       const orderId = orderResult.recordset[0].Id;
 
-      for (const item of cart) {
-        await transaction.request()
-          .input('orderId', sql.Int, orderId)
-          .input('name', sql.NVarChar, item.product.Name)
-          .input('qty', sql.Int, item.quantity)
-          .input('price', sql.Decimal(10, 2), item.product.Price)
-          .query(`INSERT INTO OrderItems (OrderId, ProductName, Quantity, PriceAtPurchase) 
-                  VALUES (@orderId, @name, @qty, @price)`);
+      if (cart.length > 0) {
+        for (const item of cart) {
+          await transaction.request()
+            .input('orderId', sql.Int, orderId)
+            .input('name', sql.NVarChar, item.product.Name)
+            .input('qty', sql.Int, item.quantity)
+            .input('price', sql.Decimal(10, 2), item.product.Price)
+            .query(`INSERT INTO OrderItems (OrderId, ProductName, Quantity, PriceAtPurchase) 
+                    VALUES (@orderId, @name, @qty, @price)`);
+        }
       }
 
       await transaction.commit();
-
-      // 3. Clear Cart and Show Success View
       req.session.cart = [];
-      res.render('order-success', { 
+      
+      return res.render('order-success', { 
         title: 'Order Confirmed', 
         orderId, 
         total, 
@@ -271,13 +210,17 @@ app.post('/checkout', async (req, res) => {
       });
 
     } catch (dbErr) {
-      await transaction.rollback();
+      if (transaction) await transaction.rollback();
       throw dbErr;
     }
   } catch (err) {
-    console.error("Order Processing Error:", err);
-    safeRender(res, 'checkout', { 
-      title: "Checkout", cart, total, cartCount: cart.length, error: "Database error occurred." 
+    console.error("CRITICAL DATABASE ERROR:", err.message);
+    return res.render('checkout', { 
+      title: "Checkout Error", 
+      cart, 
+      total, 
+      cartCount: cart.length, 
+      error: "Database error: " + err.message 
     });
   }
 });
@@ -287,11 +230,10 @@ app.get('/order/:id', (req, res) => {
     title: `Order Confirmed`, 
     orderId: req.params.id,
     message: "Order found!",
-    total: 0,
     cartCount: 0 
   });
 });
 
 initDB().then(() => {
-  app.listen(port, () => console.log(`🚀 CST8912 running on port ${port}`));
+  app.listen(port, () => console.log(`🚀 Server active on port ${port}`));
 });
